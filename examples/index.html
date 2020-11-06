@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>mmgui demo</title>
+</head>
+<body>
+    <h1>Hello, mmgui!</h1>
+
+    <script>
+        window.addEventListener('message', (event) => {
+            console.log("receive message from python <-", event.data);
+        });
+
+        RPC.invoke("echo", { msg: "hello" }).then(response => {
+            console.log("send message to python ->", response);
+        });
+    </script>
+</body>
+</html>
