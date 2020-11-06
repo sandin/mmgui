@@ -38,8 +38,5 @@ def on_destroy(ctx):
 
 app.on("create", on_create)
 app.on("destroy", on_destroy)
-
-
-
 exit_code = app.run()
 sys.exit(exit_code)
