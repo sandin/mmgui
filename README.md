@@ -25,7 +25,5 @@ def on_create(ctx):
     })
     win.load_file(os.path.join(os.path.dirname(os.path.abspath(__file__)), "index.html"))
 app.on("create", on_create)
-
-exit_code = app.run()
-sys.exit(exit_code)
+app.run()
 ```
