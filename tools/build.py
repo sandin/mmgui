@@ -52,7 +52,7 @@ def task_ui():
 
 @task(name = "wheel", depends = ["ui"])
 def task_wheel():
-    subprocess.check_call(['python', 'setup.py', 'bdist', 'bdist_wheel'])
+    subprocess.check_call(['python', 'setup.py', 'sdist']) # twine upload dist/*
     return True
 
 

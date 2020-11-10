@@ -6,7 +6,7 @@ from typing import NoReturn, Callable
 from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtWidgets import QApplication
 
-import platform
+from .platform import setup_stdio, setup_console
 
 
 class Context(object):
@@ -42,8 +42,8 @@ class App(Context):
         self._notify_callback("destroy")
 
     def run(self) -> int:
-        platform.setup_stdio()
-        platform.setup_console()
+        setup_stdio()
+        setup_console()
 
         argv = sys.argv[:]
         if self._headless:
