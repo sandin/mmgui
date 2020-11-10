@@ -5,15 +5,15 @@ import os
 from typing import NoReturn, Callable, Any
 
 from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtCore import QUrl, QObject, pyqtSignal, pyqtSlot, QVariant
-from PyQt5.QtWidgets import QMainWindow, QWidget
+from PyQt5.QtCore import QUrl, QObject, pyqtSignal, pyqtSlot, QVariant, QDir
+from PyQt5.QtWidgets import QMainWindow, QWidget, QMessageBox, QFileDialog
 from PyQt5.QtGui import QDragEnterEvent, QDragLeaveEvent, QDropEvent, QKeyEvent
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineScript
 from PyQt5.QtWebChannel import QWebChannel
 
-from asyncqt import run_on_worker_thread
+from .asyncqt import run_on_worker_thread
 from .menu import MenuSeparator
-from webview_window_ui import Ui_WebViewWindowUI
+from .webview_window_ui import Ui_WebViewWindowUI
 
 
 g_default_configs = {
@@ -147,7 +147,14 @@ class WebViewBridge(QObject):
         self.on_message.emit(json.dumps({ "callback_id": -1, "result": msg}))
 
 
-class WebViewWindow(object):
+class WebViewEvent(object):
+
+    def __init__(self, type, data):
+        self.type = type
+        self.data = data
+
+
+class BrowserWindow(object):
 
     def __init__(self, configs: dict):
         self._configs = {**g_default_configs, **configs}
@@ -159,7 +166,6 @@ class WebViewWindow(object):
         self._setup_main_window()
         self._setup_menus()
         self._setup_web_engine_view()
-        self._setup_web_dev_tools_view()
 
     def _setup_main_window(self) -> NoReturn:
         self._main_window = QMainWindow()
@@ -167,14 +173,6 @@ class WebViewWindow(object):
         self._widget_ui.setupUi(self._main_window)
         if self._configs['width'] != -1 and self._configs['height'] != -1:
             self._main_window.resize(self._configs['width'], self._configs['height'])
-
-        """
-        self._qt_menu = QtWidgets.QMenu(self._widget_ui.menubar)
-        self._qt_menu.setObjectName("test menu")
-        self._qt_menu.setTitle("test menu")
-        self._widget_ui.menubar.addAction(self._qt_menu.menuAction())
-        self._main_window.setMenuBar(self._widget_ui.menubar)
-        """
 
     def _setup_menus(self) -> NoReturn:
         app_menu = self._configs['menu']
@@ -204,10 +202,73 @@ class WebViewWindow(object):
             self._main_window.setMenuBar(menubar)
 
     def _setup_web_engine_view(self) -> NoReturn:
-        self._web_engine_wrapper = MyQWidget(self._configs['dev_mode'])
-        self._web_engine_view = self._create_web_engine_view(self._main_window, "webEngineView")
+        self._devtools_web_view = WebView(self._main_window, "webDevEngineView", False)
+        self._widget_ui.verticalLayout_3.addWidget(self._devtools_web_view.get_web_engine_view())
+
+        self.webview = WebView(self._main_window, "webEngineView", self._configs['dev_mode'])
+        self._widget_ui.verticalLayout.addWidget(self.webview.get_web_engine_view())
+        self.webview.set_web_dev_tools_page(self._devtools_web_view.get_web_engine_view().page()) # bind webEngineView with devTools
+
+    def show(self) -> NoReturn:
+        if self._configs['width'] != -1 and self._configs['height'] != -1:
+            self._main_window.show()
+        else:
+            self._main_window.showMaximized()
+
+    def destroy(self) -> NoReturn:
+        if self.webview:
+            self.webview.destroy()
+
+    def show_alert_dialog(self, title: str, msg: str, cancelable: bool = True) -> bool:
+        message_box = QMessageBox()
+        message_box.setWindowTitle(title)
+        message_box.setIcon(QMessageBox.Question)
+        message_box.setText(msg)
+        message_box.setStandardButtons((QMessageBox.Yes | QMessageBox.Cancel) if cancelable else QMessageBox.Yes)
+        result = message_box.exec()
+        return result == QMessageBox.Yes
+
+    def show_file_dialog_for_save_file(self, filename: str, msg: str, filter: str) -> list:
+        options = QFileDialog.Options()
+        files = QFileDialog.getSaveFileName(None,
+                                            msg,
+                                            filename,
+                                            filter=filter,
+                                            options=options)
+        return files
+
+    def show_file_dialog_for_file(self, title: str, filter: str) -> list:
+        options = QFileDialog.Options()
+        files, _ = QFileDialog.getOpenFileNames(None,
+                                                title,
+                                                directory=QDir.homePath(),
+                                                filter=filter,
+                                                options=options)
+        return files
+
+    def show_file_dialog_for_dir(self, title: str) -> str:
+        options = QFileDialog.Options()
+        choose_dir = QFileDialog.getExistingDirectory(None,
+                                                      title,
+                                                      directory=QDir.homePath(),
+                                                      options=options)
+        return choose_dir
+
+
+class WebView(object):
+
+    def __init__(self, parent, object_name, dev_mode: bool):
+        self._event_listeners = {}
+        self._web_engine_view = None
+        self._dev_mode = dev_mode
+        self._object_name = object_name
+        self._setup_web_engine_view(parent)
+
+    def _setup_web_engine_view(self, parent) -> NoReturn:
+        self._web_engine_wrapper = MyQWidget(self._dev_mode)
+        self._web_engine_view = self._create_web_engine_view(parent, self._object_name)
         self._web_engine_view.urlChanged.connect(self._on_url_changed)
-        self._widget_ui.verticalLayout.addWidget(self._web_engine_view)
+        self._web_engine_view.page().loadFinished.connect(self._on_page_load_finished)
 
         # cookies
         self._cookiesJar = CookiesJar()
@@ -224,22 +285,51 @@ class WebViewWindow(object):
         self.inject_javascript_file(os.path.join(os.path.dirname(os.path.abspath(__file__)), "res", "js", "qwebchannel.js"))
         self.inject_javascript_file(os.path.join(os.path.dirname(os.path.abspath(__file__)), "res", "js", "mmgui.js"))
 
+    def get_web_engine_view(self):
+        return self._web_engine_view
+
+    def register_event_listener(self, event_type: str, listener: Callable[[WebViewEvent], NoReturn]) -> NoReturn:
+        if event_type not in self._event_listeners:
+            self._event_listeners[event_type] = []
+        self._event_listeners[event_type].append(listener)
+
+    def unregister_event_listener(self, event_type: str, listener: Callable[[WebViewEvent], NoReturn]) -> NoReturn:
+        if event_type in self._event_listeners and self._event_listeners[event_type]:
+            for item in self._event_listeners[event_type]:
+                if item == listener:
+                    self._event_listeners[event_type].remove(item)
+                    break
+
+    def _notify_event_listeners(self, event: WebViewEvent):
+        event_type = event.type
+        if event_type in self._event_listeners and self._event_listeners[event_type]:
+            for listener in self._event_listeners[event_type]:
+                listener(event)
+
     def _on_url_changed(self, qurl):
-        logging.info("[WebView] onUrlChanged %s", qurl.toString())
+        logger.info("_on_url_changed %s", qurl.toString())
+        self._notify_event_listeners(WebViewEvent("on_url_changed", qurl.toString()))
+
+    def _on_page_load_finished(self, ok):
+        logger.info("_on_page_load_finished %s", ok)
+        self._notify_event_listeners(WebViewEvent("on_page_load_finished", ok))
 
     def _on_cookie_added(self, cookie):
+        logger.info("_on_cookie_added %s", cookie)
         self._cookiesJar.add_cookie(cookie)
 
     def _on_cookie_removed(self, cookie):
+        logger.info("_on_cookie_removed %s", cookie)
         self._cookiesJar.remove_cookie(cookie)
 
-    def _setup_web_dev_tools_view(self) -> NoReturn:
-        self._web_dev_tools_view = self._create_web_engine_view(self._main_window, "webDevEngineView")
-        self._widget_ui.verticalLayout_3.addWidget(self._web_dev_tools_view)
-        self._web_engine_view.page().setDevToolsPage(self._web_dev_tools_view.page()) # bind webEngineView with devTools
+    def delete_all_cookies(self):
+        self._web_engine_view.page().profile().cookieStore().deleteAllCookies()
+
+    def get_cookie(self, domain, name):
+        return self._cookiesJar.get_cookie(domain, name)
 
     def _create_web_engine_view(self, parent, object_name: str) -> QWebEngineView :
-        web_engine_view = MyQWebEngineView(parent, lambda e: self._on_drop(e), self._configs['dev_mode'])
+        web_engine_view = MyQWebEngineView(parent, lambda e: self._on_drop(e), self._dev_mode)
         web_engine_view.setAutoFillBackground(False)
         web_engine_view.setStyleSheet("")
         web_engine_view.setUrl(QtCore.QUrl("about:blank"))
@@ -256,8 +346,8 @@ class WebViewWindow(object):
     def send_message_to_js(self, msg: Any) -> NoReturn:
         self._web_bridge.send_message(msg)
 
-    def run_javascript_code(self, javascript_code: str) -> NoReturn:
-        self._web_engine_view.page().runJavaScript(javascript_code)
+    def run_javascript_code(self, javascript_code: str, callback: Callable[[Any], None]) -> NoReturn:
+        self._web_engine_view.page().runJavaScript(javascript_code, callback)
 
     def inject_javascript_file(self, javascript_file: str) -> NoReturn:
         if not os.path.exists(javascript_file):
@@ -278,11 +368,12 @@ class WebViewWindow(object):
 
     def load_file(self, filename: str) -> NoReturn:
         self._web_engine_view.load(QUrl.fromLocalFile(filename))
-        self.show()
 
     def load_url(self, url: str) -> NoReturn:
         self._web_engine_view.load(QUrl(url))
-        self.show()
+
+    def set_web_dev_tools_page(self, page) -> NoReturn:
+        self._web_engine_view.page().setDevToolsPage(page)
 
     def reload(self):
         self._web_engine_view.reload()
@@ -292,8 +383,4 @@ class WebViewWindow(object):
         self._web_engine_view.deleteLater()
         self._web_engine_view.close()
 
-    def show(self) -> NoReturn:
-        if self._configs['width'] != -1 and self._configs['height'] != -1:
-            self._main_window.show()
-        else:
-            self._main_window.showMaximized()
+

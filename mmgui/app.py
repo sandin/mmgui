@@ -13,6 +13,7 @@ class Context(object):
     pass
 
 
+
 class App(Context):
 
     def __init__(self, headless: bool = False):
@@ -52,12 +53,17 @@ class App(Context):
             self._qt_application = QApplication(argv)
 
         self.on_create() # -> create and show the WebView window
+        self._qt_application.aboutToQuit.connect(self._on_quit)
         exit_code = self._qt_application.exec_()
         self._qt_application.deleteLater()
-        self.on_destroy()
         return exit_code
         #sys.exit(exit_code)
 
+    def _on_quit(self):
+        self.on_destroy()
+
     def exit(self) -> NoReturn:
         self._qt_application.quit()
-        self.on_destroy()
+
+    def get_application_dir_path(self):
+        return self._qt_application.applicationDirPath()
