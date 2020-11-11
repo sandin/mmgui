@@ -16,7 +16,7 @@ if (typeof(window) == "undefined") {
         connect() {
             return new Promise((resolve, reject) => {
                 new QWebChannel(qt.webChannelTransport, (channel) => {
-                    //console.log("on qwebchancel connected", qt.webChannelTransport);
+                    //console.log("on qwebchancel connected", qt.webChannelTransport, channel);
                     this.proxy = channel.objects.proxy;
 
                     this.proxy.on_message.connect(this._onMessage.bind(this));
@@ -25,23 +25,17 @@ if (typeof(window) == "undefined") {
             });
         }
 
-        invokeSync(method, params) {
-            console.log("RPC", "invoke", "method", method, "params", params);
-            return new Promise((resolve, reject) => {
+        invokeSync(method, params, callback) {
+            //console.log("RPC", "invoke", "method", method, "params", params);
+            //return new Promise((resolve, reject) => {
                 if (typeof(this.proxy) == "undefined") {
                     this.connect().then((_) => {
-                        this.proxy.invoke(method, JSON.stringify(params), (response) => {
-                            console.log("RPC", "invoke", "method", method, "response", response);
-                            resolve(response);
-                        });
+                        this.proxy.invoke(method, JSON.stringify(params), callback);
                     });
                 } else {
-                    this.proxy.invoke(method, JSON.stringify(params), (response) => {
-                        console.log("RPC", "invoke", "method", method, "response", response);
-                        resolve(response);
-                    });
+                    this.proxy.invoke(method, JSON.stringify(params), callback);
                 }
-            });
+            //});
         }
 
         invoke(method, params, callback) {

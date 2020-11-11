@@ -72,6 +72,10 @@ class WorkerThreadExecutor(object):
 
     _thread_pool = QThreadPool()
 
+    def __init__(self):
+        self._thread_pool.setMaxThreadCount(20)
+        self._thread_pool.setExpiryTimeout(30 * 1000) # default: 30seconds
+
     def execute(self, func, *args, **kwargs):
         runnable = WorkerRunnable(func, *args, **kwargs)
         self._thread_pool.start(runnable)

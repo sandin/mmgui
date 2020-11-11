@@ -4,9 +4,49 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>mmgui demo</title>
+    <style>
+        html, body, #container {
+            width: 100%;
+            height: 100%;
+            background: #252526;
+            color: #fff;
+            padding: 0;
+            margin: 0;
+            overflow: hidden;
+        }
+        #container {
+            display: flex;
+            flex-direction: column;
+        }
+        #window-title-bar {
+            width: 100%;
+            height: 36px;
+            line-height: 36px;
+            background: #323233;
+            flex: 0 0 auto;
+            padding: 0 10px;
+            font-size: 13px;
+        }
+        #content {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex: 1 1 auto;
+        }
+    </style>
 </head>
 <body>
-    <h1>Hello, mmgui!</h1>
+    <div id="container">
+        <div id="window-title-bar">
+            Window - Title
+            <button onclick="javascript:RPC.invokeSync('show_minimized_window')">Min</button>
+            <button onclick="javascript:RPC.invokeSync('toggle_maximized_window')">Normal</button>
+            <button onclick="javascript:RPC.invokeSync('close_window')">Close</button>
+        </div>
+        <div id="content">
+            <h1>Hello, mmgui!</h1>
+        </div>
+    </div>
 
     <script>
         window.addEventListener('message', (event) => {
@@ -15,6 +55,54 @@
 
         RPC.invoke("echo", { msg: "hello" }).then(response => {
             console.log("send message to python ->", response);
+        });
+
+        function registerTitleBarMoveEventListener(callback) {
+            let titleBarElem = document.getElementById("window-title-bar");
+            let isMouseMoving = false;
+            let x = 0;
+            let y = 0;
+            titleBarElem.addEventListener("mousedown", (e) => {
+                x = e.screenX;
+                y = e.screenY;
+                isMouseMoving = true;
+            });
+            titleBarElem.addEventListener("mousemove", (e) => {
+                if (isMouseMoving) {
+                    let dx = e.screenX - x;
+                    let dy = e.screenY - y;
+                    callback(x, y, dx, dy);
+                    x = e.screenX;
+                    y = e.screenY;
+                }
+            });
+            titleBarElem.addEventListener("mouseup", (e) => {
+                if (isMouseMoving) {
+                    x = 0;
+                    y = 0;
+                    isMouseMoving = false;
+                }
+            });
+            document.addEventListener("mousemove", (e) => {
+                if (isMouseMoving) {
+                    let dx = e.screenX - x;
+                    let dy = e.screenY - y;
+                    callback(x, y, dx, dy);
+                    x = e.screenX;
+                    y = e.screenY;
+                }
+            });
+            document.addEventListener("mouseup", (e) => {
+                if (isMouseMoving) {
+                    x = 0;
+                    y = 0;
+                    isMouseMoving = false;
+                }
+            });
+        }
+
+        registerTitleBarMoveEventListener((x, y, dx, dy) => {
+            RPC.invokeSync('move_window', {dx, dy}, (response) => {});
         });
     </script>
 </body>

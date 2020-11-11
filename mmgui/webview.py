@@ -5,9 +5,9 @@ import os
 from typing import NoReturn, Callable, Any
 
 from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtCore import QUrl, QObject, pyqtSignal, pyqtSlot, QVariant, QDir
-from PyQt5.QtWidgets import QMainWindow, QWidget, QMessageBox, QFileDialog
-from PyQt5.QtGui import QDragEnterEvent, QDragLeaveEvent, QDropEvent, QKeyEvent
+from PyQt5.QtCore import QUrl, QObject, pyqtSignal, pyqtSlot, QVariant, QDir, QEvent, QPoint
+from PyQt5.QtWidgets import QMainWindow, QWidget, QMessageBox, QFileDialog, QShortcut
+from PyQt5.QtGui import QDragEnterEvent, QDragLeaveEvent, QDropEvent, QKeyEvent, QKeySequence
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineScript
 from PyQt5.QtWebChannel import QWebChannel
 
@@ -20,25 +20,13 @@ g_default_configs = {
     "width": 800,
     "height": 600,
     "dev_mode": False,
-    "menu": None
+    "frameless": False,
+    "statusbar": False,
+    "menu": None,
+    "title": "mmgui"
 }
 
 logger = logging.getLogger("WebView")
-
-
-class MyQWidget(QWidget):
-
-    on_reload_hotkey = pyqtSignal(object) # Ctrl+R or F5 to reload
-
-    def __init__(self, dev_mode):
-        super(MyQWidget, self).__init__()
-        self._dev_mode = dev_mode
-
-    def keyPressEvent(self, event):
-        if self._dev_mode:
-            if (event.modifiers() & QtCore.Qt.ControlModifier and event.key() == QtCore.Qt.Key_R) or event.key() == QtCore.Qt.Key_F5:
-                self.on_reload_hotkey.emit({})
-        event.accept()
 
 
 class MyQWebEngineView(QWebEngineView):
@@ -64,11 +52,6 @@ class MyQWebEngineView(QWebEngineView):
     def dropEvent(self, event: QDropEvent):
         logger.info("dropEvent %s", event)
         self._drop_callback(event)
-
-    def keyPressEvent(self, event: QKeyEvent):
-        if self._dev_mode and \
-                ((event.modifiers() & QtCore.Qt.ControlModifier and event.key() == QtCore.Qt.Key_R) or event.key() == QtCore.Qt.Key_F5):
-            self.reload()
 
 
 class CookiesJar(object):
@@ -119,7 +102,7 @@ class WebViewBridge(QObject):
     def unbind_function(self, js_function_name):
         del self._function_map[js_function_name]
 
-    @pyqtSlot(str, str, name='invoke', result=QVariant) # js -> py
+    @pyqtSlot(str, str, name='invoke', result=QVariant) # js -> py, sync call
     def invoke(self, function_name, params):
         if params:
             params = json.loads(params)
@@ -130,7 +113,7 @@ class WebViewBridge(QObject):
             result = self._function_map[function_name](**params)
         return result
 
-    @pyqtSlot(str, str, str, name='post_message') # js -> py
+    @pyqtSlot(str, str, str, name='post_message') # js -> py, ansync call(Callback or Promise)
     def js_post_message_to_py(self, callback_id, function_name, params):
         self.invoke_on_worker_thread(callback_id, function_name, params)
 
@@ -165,12 +148,17 @@ class BrowserWindow(object):
     def _setup_ui(self) -> NoReturn:
         self._setup_main_window()
         self._setup_menus()
+        self._setup_status_bar()
         self._setup_web_engine_view()
+        self._setup_shortcut_keys()
 
     def _setup_main_window(self) -> NoReturn:
         self._main_window = QMainWindow()
+        if self._configs['frameless']:
+            self._main_window.setWindowFlags(QtCore.Qt.FramelessWindowHint)
         self._widget_ui = Ui_WebViewWindowUI()
         self._widget_ui.setupUi(self._main_window)
+        self._main_window.setWindowTitle(self._configs['title'])
         if self._configs['width'] != -1 and self._configs['height'] != -1:
             self._main_window.resize(self._configs['width'], self._configs['height'])
 
@@ -200,14 +188,45 @@ class BrowserWindow(object):
                         qt_menu.addSeparator()
 
             self._main_window.setMenuBar(menubar)
+        else:
+            self._main_window.setMenuBar(None)
+
+    def _setup_status_bar(self) -> NoReturn:
+        if not self._configs['statusbar']:
+            self._main_window.setStatusBar(None)
 
     def _setup_web_engine_view(self) -> NoReturn:
         self._devtools_web_view = WebView(self._main_window, "webDevEngineView", False)
-        self._widget_ui.verticalLayout_3.addWidget(self._devtools_web_view.get_web_engine_view())
+        self._widget_ui.verticalLayout_3.addWidget(self._devtools_web_view.get_widget_view())
 
         self.webview = WebView(self._main_window, "webEngineView", self._configs['dev_mode'])
-        self._widget_ui.verticalLayout.addWidget(self.webview.get_web_engine_view())
-        self.webview.set_web_dev_tools_page(self._devtools_web_view.get_web_engine_view().page()) # bind webEngineView with devTools
+        self._widget_ui.verticalLayout.addWidget(self.webview.get_widget_view())
+        self.webview.set_web_dev_tools_page(self._devtools_web_view.get_web_engine_view_page()) # bind webEngineView with devTools
+
+    def _setup_shortcut_keys(self):
+        self._shortcut_refresh = QShortcut(QKeySequence('Ctrl+R'), self._main_window)
+        self._shortcut_refresh.activated.connect(self._on_refresh_shortcut_key_pressed)
+        self._shortcut_refresh2 = QShortcut(QKeySequence('F5'), self._main_window)
+        self._shortcut_refresh2.activated.connect(self._on_refresh_shortcut_key_pressed)
+        self._shortcut_fullscreen = QShortcut(QKeySequence('F11'), self._main_window)
+        self._shortcut_fullscreen.activated.connect(self._on_fullscreen_shortcut_key_pressed)
+        self._shortcut_devtools = QShortcut(QKeySequence('F12'), self._main_window)
+        self._shortcut_devtools.activated.connect(self._on_devtools_shortcut_key_pressed)
+
+    def _on_refresh_shortcut_key_pressed(self):
+        self.webview.reload()
+
+    def _on_devtools_shortcut_key_pressed(self):
+        if self._widget_ui.consoleLogDockWidget.isVisible():
+            self._widget_ui.consoleLogDockWidget.hide()
+        else:
+            self._widget_ui.consoleLogDockWidget.show()
+
+    def _on_fullscreen_shortcut_key_pressed(self):
+        if self._main_window.isFullScreen():
+            self._main_window.showNormal()
+        else:
+            self._main_window.showFullScreen()
 
     def show(self) -> NoReturn:
         if self._configs['width'] != -1 and self._configs['height'] != -1:
@@ -215,9 +234,35 @@ class BrowserWindow(object):
         else:
             self._main_window.showMaximized()
 
-    def destroy(self) -> NoReturn:
+    def show_maximized(self) -> NoReturn:
+        self._main_window.showMaximized()
+
+    def show_minimized(self) -> NoReturn:
+        self._main_window.showMinimized()
+
+    def show_normal(self) -> NoReturn:
+        self._main_window.showNormal()
+
+    def show_full_screen(self) -> NoReturn:
+        self._main_window.showFullScreen()
+
+    def is_maximized(self) -> bool:
+        return self._main_window.windowState() == QtCore.Qt.WindowMaximized
+
+    def is_full_screen(self) -> bool:
+        return self._main_window.windowState() == QtCore.Qt.WindowFullScreen
+
+    def move(self, x, y):
+        self._main_window.move(x, y)
+
+    def move_by(self, dx, dy):
+        cur_pos: QPoint = self._main_window.pos()
+        self._main_window.move(cur_pos.x() + dx, cur_pos.y() + dy)
+
+    def close(self) -> NoReturn:
         if self.webview:
             self.webview.destroy()
+        self._main_window.close()
 
     def show_alert_dialog(self, title: str, msg: str, cancelable: bool = True) -> bool:
         message_box = QMessageBox()
@@ -263,9 +308,9 @@ class WebView(object):
         self._dev_mode = dev_mode
         self._object_name = object_name
         self._setup_web_engine_view(parent)
+        self.move_window_func = None
 
     def _setup_web_engine_view(self, parent) -> NoReturn:
-        self._web_engine_wrapper = MyQWidget(self._dev_mode)
         self._web_engine_view = self._create_web_engine_view(parent, self._object_name)
         self._web_engine_view.urlChanged.connect(self._on_url_changed)
         self._web_engine_view.page().loadFinished.connect(self._on_page_load_finished)
@@ -285,7 +330,16 @@ class WebView(object):
         self.inject_javascript_file(os.path.join(os.path.dirname(os.path.abspath(__file__)), "res", "js", "qwebchannel.js"))
         self.inject_javascript_file(os.path.join(os.path.dirname(os.path.abspath(__file__)), "res", "js", "mmgui.js"))
 
+    def register_web_channel_object(self, namespace: str, object: QObject) -> NoReturn:
+        self._web_channel.registerObject(namespace, object)
+
     def get_web_engine_view(self):
+        return self._web_engine_view
+
+    def get_web_engine_view_page(self):
+        return self._web_engine_view.page()
+
+    def get_widget_view(self):
         return self._web_engine_view
 
     def register_event_listener(self, event_type: str, listener: Callable[[WebViewEvent], NoReturn]) -> NoReturn:
