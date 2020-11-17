@@ -60,7 +60,7 @@ def on_create(ctx):
         "width": 1200,
         "height": 800,
         "dev_mode": True,
-        #"frameless": True,
+        "frameless": True,
         #"menu": menu
     })
     win.webview.bind_function("echo", echo)
