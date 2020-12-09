@@ -191,6 +191,18 @@ class BrowserWindow(object):
         else:
             self._main_window.setMenuBar(None)
 
+    def _find_action(self, title):
+        for action in self._actions:
+            print("menu loop", action.objectName())
+            if action.objectName() == title:
+                return action
+        return None
+
+    def set_menu_visible(self, menu_title, visible):
+        action = self._find_action(menu_title)
+        if action:
+            action.setVisible(visible)
+
     def _setup_status_bar(self) -> NoReturn:
         if not self._configs['statusbar']:
             self._main_window.setStatusBar(None)
