@@ -3,7 +3,7 @@ import signal
 
 from typing import NoReturn, Callable
 
-from PyQt5.QtCore import QCoreApplication
+from PyQt5.QtCore import QCoreApplication, QSettings
 from PyQt5.QtWidgets import QApplication
 
 from .platform import setup_stdio, setup_console
@@ -16,8 +16,10 @@ class Context(object):
 
 class App(Context):
 
-    def __init__(self, headless: bool = False):
+    def __init__(self, headless: bool = False, configs_file = None):
         self._headless = headless
+        self._configs_file = configs_file
+        self._settings : QSettings = None
         self._qt_application = None
         self._events_callback = {
             "create": [],
@@ -52,12 +54,22 @@ class App(Context):
         else:
             self._qt_application = QApplication(argv)
 
-        self.on_create() # -> create and show the WebView window
+        # configs
+        if self._configs_file:
+            self._settings = QSettings(self._configs_file, QSettings.IniFormat)
+            self._settings.sync()
+
         self._qt_application.aboutToQuit.connect(self._on_quit)
+        self.on_create() # -> create and show the WebView window
         exit_code = self._qt_application.exec_()
         self._qt_application.deleteLater()
         return exit_code
         #sys.exit(exit_code)
+
+    def get_config(self, key, def_val = None):
+        if self._settings:
+            return self._settings.value(key, def_val)
+        return def_val
 
     def _on_quit(self):
         self.on_destroy()
