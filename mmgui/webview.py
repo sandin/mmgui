@@ -162,6 +162,9 @@ class BrowserWindow(object):
         if self._configs['width'] != -1 and self._configs['height'] != -1:
             self._main_window.resize(self._configs['width'], self._configs['height'])
 
+    def get_main_window(self):
+        return self._main_window
+
     def _setup_menus(self) -> NoReturn:
         app_menu = self._configs['menu']
         if app_menu:

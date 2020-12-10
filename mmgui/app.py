@@ -3,10 +3,12 @@ import signal
 
 from typing import NoReturn, Callable
 
+from PyQt5 import QtGui, QtCore
 from PyQt5.QtCore import QCoreApplication, QSettings
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QSplashScreen
 
-from .platform import setup_stdio, setup_console
+from .platform import setup_stdio, setup_console, run_as_job
+from .asyncqt import asyncqt_ui_thread_loop
 
 
 class Context(object):
@@ -16,9 +18,17 @@ class Context(object):
 
 class App(Context):
 
-    def __init__(self, headless: bool = False, configs_file = None):
+    def __init__(self,
+                 headless: bool = False,
+                 icon_file = None,
+                 splash_file = None,
+                 splash_text = None,
+                 configs_file = None):
         self._headless = headless
         self._configs_file = configs_file
+        self._icon_file = icon_file
+        self._splash_file = splash_file
+        self._splash_text = splash_text
         self._settings : QSettings = None
         self._qt_application = None
         self._events_callback = {
@@ -46,6 +56,7 @@ class App(Context):
     def run(self) -> int:
         setup_stdio()
         setup_console()
+        run_as_job()
 
         argv = sys.argv[:]
         if self._headless:
@@ -53,6 +64,22 @@ class App(Context):
             signal.signal(signal.SIGINT, lambda *a: self._qt_application.quit())
         else:
             self._qt_application = QApplication(argv)
+
+        # icon
+        if self._icon_file:
+            window_icon = QtGui.QIcon(self._icon_file)
+            self._qt_application.setWindowIcon(window_icon)
+
+        # splash
+        if self._splash_file:
+            pixmap = QtGui.QPixmap(self._splash_file)
+            self._splash = QSplashScreen(pixmap)
+            if self._splash_text:
+                self._set_splash_text(self._splash_text, "#ffffff")
+            self._splash.show()
+
+        # asyncqt
+        asyncqt_ui_thread_loop.start_loop()
 
         # configs
         if self._configs_file:
@@ -65,6 +92,12 @@ class App(Context):
         self._qt_application.deleteLater()
         return exit_code
         #sys.exit(exit_code)
+
+    def _set_splash_text(self, text, color):
+        self._splash.showMessage(text, alignment=QtCore.Qt.AlignHCenter | QtCore.Qt.AlignBottom, color=QtGui.QColor(color))
+
+    def set_main_window(self, window):
+        self._splash.finish(window)
 
     def get_config(self, key, def_val = None):
         if self._settings:
