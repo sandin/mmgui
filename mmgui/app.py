@@ -67,8 +67,8 @@ class App(Context):
 
         # icon
         if self._icon_file:
-            window_icon = QtGui.QIcon(self._icon_file)
-            self._qt_application.setWindowIcon(window_icon)
+            self._window_icon = QtGui.QIcon(self._icon_file)
+            self._qt_application.setWindowIcon(self._window_icon)
 
         # splash
         if self._splash_file:
@@ -97,7 +97,9 @@ class App(Context):
         self._splash.showMessage(text, alignment=QtCore.Qt.AlignHCenter | QtCore.Qt.AlignBottom, color=QtGui.QColor(color))
 
     def set_main_window(self, window):
-        self._splash.finish(window)
+        if window:
+            self._splash.finish(window)
+            window.setWindowIcon(self._window_icon)
 
     def get_config(self, key, def_val = None):
         if self._settings:
