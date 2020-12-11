@@ -37,7 +37,7 @@ class MyQWebEngineView(QWebEngineView):
     This version of Qt WebEngine is based on Chromium version 65.0.3325.151, with additional security fixes from newer versions.
     """
 
-    def __init__(self, parent, drop_callback: Callable[[QDropEvent], NoReturn], dev_mode: bool):
+    def __init__(self, parent, drop_callback: Callable[[QDropEvent], None], dev_mode: bool):
         super(MyQWebEngineView, self).__init__(parent)
         self._drop_callback = drop_callback
         self._dev_mode = dev_mode
@@ -211,12 +211,17 @@ class BrowserWindow(object):
             self._main_window.setStatusBar(None)
 
     def _setup_web_engine_view(self) -> NoReturn:
-        self._devtools_web_view = WebView(self._main_window, "webDevEngineView", False)
-        self._widget_ui.verticalLayout_3.addWidget(self._devtools_web_view.get_widget_view())
-
         self.webview = WebView(self._main_window, "webEngineView", self._configs['dev_mode'])
         self._widget_ui.verticalLayout.addWidget(self.webview.get_widget_view())
-        self.webview.set_web_dev_tools_page(self._devtools_web_view.get_web_engine_view_page()) # bind webEngineView with devTools
+        if self._configs['dev_mode']:
+            self._devtools_web_view = WebView(self._main_window, "webDevEngineView", False)
+            self._widget_ui.verticalLayout_3.addWidget(self._devtools_web_view.get_widget_view())
+            self.webview.set_web_dev_tools_page(self._devtools_web_view.get_web_engine_view_page()) # bind webEngineView with devTools
+            self._widget_ui.consoleLogDockWidget.setVisible(True)
+        else:
+            self._widget_ui.consoleLogDockWidget.setVisible(False)
+
+
 
     def _setup_shortcut_keys(self):
         self._shortcut_refresh = QShortcut(QKeySequence('Ctrl+R'), self._main_window)
@@ -357,12 +362,12 @@ class WebView(object):
     def get_widget_view(self):
         return self._web_engine_view
 
-    def register_event_listener(self, event_type: str, listener: Callable[[WebViewEvent], NoReturn]) -> NoReturn:
+    def register_event_listener(self, event_type: str, listener: Callable[[WebViewEvent], None]) -> NoReturn:
         if event_type not in self._event_listeners:
             self._event_listeners[event_type] = []
         self._event_listeners[event_type].append(listener)
 
-    def unregister_event_listener(self, event_type: str, listener: Callable[[WebViewEvent], NoReturn]) -> NoReturn:
+    def unregister_event_listener(self, event_type: str, listener: Callable[[WebViewEvent], None]) -> NoReturn:
         if event_type in self._event_listeners and self._event_listeners[event_type]:
             for item in self._event_listeners[event_type]:
                 if item == listener:

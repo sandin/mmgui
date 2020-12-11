@@ -36,7 +36,7 @@ class App(Context):
             "destroy": []
         }
 
-    def on(self, event: str, callback: Callable[[Context], NoReturn]) -> NoReturn:
+    def on(self, event: str, callback: Callable[[Context], None]) -> NoReturn:
         if event not in self._events_callback:
             raise Exception("unsupported event %s" % event)
         self._events_callback[event].append(callback)
