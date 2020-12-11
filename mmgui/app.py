@@ -7,7 +7,7 @@ from PyQt5 import QtGui, QtCore
 from PyQt5.QtCore import QCoreApplication, QSettings
 from PyQt5.QtWidgets import QApplication, QSplashScreen
 
-from .platform import setup_stdio, setup_console, run_as_job
+from .platform import setup_stdio, setup_console, run_as_job, STDOUT_STREAMS, STDERR_STREAMS
 from .asyncqt import asyncqt_ui_thread_loop
 
 
@@ -23,12 +23,15 @@ class App(Context):
                  icon_file = None,
                  splash_file = None,
                  splash_text = None,
-                 configs_file = None):
+                 configs_file = None,
+                 log_file = None
+                 ):
         self._headless = headless
         self._configs_file = configs_file
         self._icon_file = icon_file
         self._splash_file = splash_file
         self._splash_text = splash_text
+        self._log_file = log_file
         self._settings : QSettings = None
         self._qt_application = None
         self._events_callback = {
@@ -85,6 +88,12 @@ class App(Context):
         if self._configs_file:
             self._settings = QSettings(self._configs_file, QSettings.IniFormat)
             self._settings.sync()
+
+        # log
+        if self._log_file:
+            logfp = open(self._log_file, 'w')
+            STDERR_STREAMS.add(logfp)
+            STDOUT_STREAMS.add(logfp)
 
         self._qt_application.aboutToQuit.connect(self._on_quit)
         self.on_create() # -> create and show the WebView window
