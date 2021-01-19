@@ -34,7 +34,7 @@ app.on("create", on_create)
 app.run()
 ```
 
-See [wiki](./wiki) or [examples](./tree/master/examples) for more details.
+See [wiki](../../wiki) or [examples](../../tree/master/examples) for more details.
 
 
 
