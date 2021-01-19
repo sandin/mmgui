@@ -28,9 +28,13 @@ def on_create(ctx):
         "height": 800
     })
     win.webview.bind_function("py_func", py_func)
-    win.webview(os.path.join(os.path.dirname(os.path.abspath(__file__)), "index.html"))
+    win.webview.load_file(os.path.join(os.path.dirname(os.path.abspath(__file__)), "index.html"))
+    win.show()
 app.on("create", on_create)
 app.run()
 ```
 
-See `examples/demo.py` for more details.
+See [wiki](./wiki) or [examples](./tree/master/examples) for more details.
+
+
+
