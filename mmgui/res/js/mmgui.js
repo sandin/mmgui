@@ -5,15 +5,23 @@ if (typeof(window) == "undefined") {
 
 (function (window) {
 
+    const RPCState = {
+        NOT_CONNECTED : 0,
+        CONNECTING : 1,
+        CONNECTED : 2
+    }
+
     class RPC {
 
         constructor() {
             this._callbacks = {};
             this._callbackId = 0;
             this.proxy = undefined;
+            this._state = RPCState.NOT_CONNECTED;
         }
 
         connect() {
+            this._state = RPCState.CONNECTING;
             return new Promise((resolve, reject) => {
                 new QWebChannel(qt.webChannelTransport, (channel) => {
                     //console.log("on qwebchancel connected", qt.webChannelTransport, channel);
@@ -21,6 +29,7 @@ if (typeof(window) == "undefined") {
 
                     this.proxy.on_message.connect(this._onMessage.bind(this));
                     resolve(this.proxy);
+                    this._state = RPCState.CONNECTED;
                 });
             });
         }
@@ -49,13 +58,22 @@ if (typeof(window) == "undefined") {
         invokeCallback(method, params, callback) {
             const callbackId = ++this._callbackId;
             this._callbacks[callbackId] = callback;
-            //console.log("RPC", "invoke", "method=", method, ",params=", params);
-            if (typeof(this.proxy) == "undefined") {
+            //console.log("RPC", "invoke", "method=", method, ",params=", params, ",callbackId=", callbackId);
+
+            if (this._state == RPCState.NOT_CONNECTED) {
                 this.connect().then((_) => {
                     this.proxy.post_message(callbackId, method, JSON.stringify(params));
                 });
-            } else {
+            } else if (this._state == RPCState.CONNECTING) {
+                setTimeout(() => {
+                    if (this.proxy) {
+                        this.proxy.post_message(callbackId, method, JSON.stringify(params));
+                    }
+                }, 300); // TODO: wait connecting
+            } else if (this._state == RPCState.CONNECTED) {
                 this.proxy.post_message(callbackId, method, JSON.stringify(params));
+            } else {
+                console.error("invalid state", this._state);
             }
         }
 
