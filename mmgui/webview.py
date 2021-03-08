@@ -8,7 +8,7 @@ from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtCore import QUrl, QObject, pyqtSignal, pyqtSlot, QVariant, QDir, QEvent, QPoint
 from PyQt5.QtWidgets import QMainWindow, QWidget, QMessageBox, QFileDialog, QShortcut
 from PyQt5.QtGui import QDragEnterEvent, QDragLeaveEvent, QDropEvent, QKeyEvent, QKeySequence
-from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineScript
+from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineScript, QWebEngineSettings
 from PyQt5.QtWebChannel import QWebChannel
 
 from .asyncqt import run_on_worker_thread
@@ -404,6 +404,8 @@ class WebView(object):
 
     def _create_web_engine_view(self, parent, object_name: str) -> QWebEngineView :
         web_engine_view = MyQWebEngineView(parent, lambda e: self._on_drop(e), self._dev_mode)
+        settings = QWebEngineSettings.defaultSettings()
+        settings.setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, True)
         web_engine_view.setAutoFillBackground(False)
         web_engine_view.setStyleSheet("")
         web_engine_view.setUrl(QtCore.QUrl("about:blank"))
