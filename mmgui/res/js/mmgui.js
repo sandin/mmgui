@@ -103,3 +103,100 @@ if (typeof(window) == "undefined") {
     }
 
 })(window);
+
+(function (window) {
+
+    function isRectHint(rect, x, y) {
+        return rect.left <= x && x < rect.right
+             && rect.top <= y && y < rect.bottom;
+    }
+
+    class DragAndDropHelper {
+        constructor() {
+            this._onMessage = this._onMessage.bind(this);
+            window.addEventListener("message", this._onMessage)
+            this._elements = [];
+        }
+
+        _onMessage(event) {
+            if (event && event.data) {
+                var data = event.data;
+                if (typeof(data.type) != "undefined") {
+                    if (data.type == "onDrop") {
+                        console.log("DragAndDropHelper", "onDrop", data.event)
+                        const x = data.event.pos[0];
+                        const y = data.event.pos[1];
+                        this._notifyElements(x, y, "qtDrop", data.event.files);
+                    }
+                }
+            }
+        }
+
+        _walkDomTree(node, func) {
+            if (node) {
+                var consumed = func(node);
+                if (!consumed) {
+                    var childCount = node.childNodes.length;
+                    if (childCount > 0) {
+                        for (var i = 0; i < childCount; i++) {
+                            var child = node.childNodes[i];
+                            if (child.nodeType == 1) {
+                                consumed = this._walkDomTree(child, func)
+                                if (consumed) {
+                                    break
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        _notifyElements(x, y, eventType, eventData) {
+            var nodeStack = [];
+            this._walkDomTree(document.body, (node) => {
+                var hint = isRectHint(node.getBoundingClientRect(), x, y);
+                if (hint) {
+                    nodeStack.push(node);
+                }
+                return !hint;
+            });
+
+            if (nodeStack.length == 0) {
+                return;
+            }
+
+            var event = document.createEvent('Event');
+            event.initEvent(eventType, false, true);
+            event.data = eventData;
+
+            for (var key in nodeStack) {
+                var domElement = nodeStack[key];
+                domElement.dispatchEvent(event);
+                console.log("DragAndDropHelper", "notifyEvent", event.composed, domElement, x, y);
+                // TODO: event consumed and break
+            }
+        }
+
+        registerDropEvent(domElement) {
+            console.log("DragAndDropHelper", "registerDropEvent", domElement);
+            this._elements.push(domElement);
+
+        }
+
+        unregisterDropEvent(domElement) {
+            console.log("DragAndDropHelper", "unregisterDropEvent", domElement);
+            var index = this._elements.indexOf(domElement);
+            if (index != -1) {
+                delete this._elements[index];
+            }
+        }
+    }
+
+    window.DragAndDropHelper = new DragAndDropHelper();
+
+    //required for use with nodejs
+    if (typeof module === 'object') {
+        module.exports.DragAndDropHelper = window.DragAndDropHelper;
+    }
+})(window);

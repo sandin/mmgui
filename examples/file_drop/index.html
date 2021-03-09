@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>mmgui demo</title>
+    <style>
+        html, body, #container {
+            width: 100%;
+            height: 100%;
+            background: #252526;
+            color: #fff;
+            padding: 0;
+            margin: 0;
+            overflow: hidden;
+        }
+        #container {
+            display: flex;
+            flex-direction: column;
+        }
+        #content {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex: 1 1 auto;
+            border: 3px dashed #eee;
+            margin: 100px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="content">
+            Drop file here
+        </div>
+    </div>
+
+    <script>
+        console.log("start");
+        RPC.connect().then(() => {});
+
+        let elem = document.getElementById("content");
+        elem.addEventListener('qtDrop', (ev) => {
+            console.log("receive qtDropEvent <-", event);
+            ev.preventDefault();
+            ev.stopPropagation();
+
+            if (ev.data && ev.data.length > 0) {
+                let files = ev.data;
+                alert(files);
+             }
+        });
+    </script>
+</body>
+</html>

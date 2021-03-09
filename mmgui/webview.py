@@ -5,7 +5,7 @@ import os
 from typing import NoReturn, Callable, Any
 
 from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtCore import QUrl, QObject, pyqtSignal, pyqtSlot, QVariant, QDir, QEvent, QPoint
+from PyQt5.QtCore import QUrl, QObject, pyqtSignal, pyqtSlot, QVariant, QDir, QEvent, QPoint, QMimeData
 from PyQt5.QtWidgets import QMainWindow, QWidget, QMessageBox, QFileDialog, QShortcut
 from PyQt5.QtGui import QDragEnterEvent, QDragLeaveEvent, QDropEvent, QKeyEvent, QKeySequence
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineScript, QWebEngineSettings
@@ -414,7 +414,20 @@ class WebView(object):
         return web_engine_view
 
     def _on_drop(self, event: QDropEvent) -> NoReturn:
-        pass # TODO
+        pos = event.pos()
+        mime_data = event.mimeData() # type:QMimeData
+        files = []
+        if mime_data.hasUrls():
+            urls = mime_data.urls()
+            for url in urls:
+                files.append(url.toLocalFile())
+        logging.info("files %s %s", files, pos)
+        if self._web_bridge:
+            event = {
+                "files": files,
+                "pos": [pos.x(), pos.y()]
+            }
+            self.send_message_to_js({"type": "onDrop", "event": event})
 
     def bind_function(self, js_function_name: str, py_function: Callable) -> NoReturn:
         self._web_bridge.bind_function(js_function_name, py_function)
