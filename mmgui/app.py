@@ -1,5 +1,5 @@
 import sys
-import signal
+# import signal
 
 from typing import NoReturn, Callable
 
@@ -64,22 +64,24 @@ class App(Context):
         argv = sys.argv[:]
         if self._headless:
             self._qt_application = QCoreApplication(argv)  # Non-GUI
-            signal.signal(signal.SIGINT, lambda *a: self._qt_application.quit())
+            if sys.platform == 'linux':
+                import signal
+                signal.signal(signal.SIGINT, lambda *a: self._qt_application.quit())
         else:
             self._qt_application = QApplication(argv)
 
-        # icon
-        if self._icon_file:
-            self._window_icon = QtGui.QIcon(self._icon_file)
-            self._qt_application.setWindowIcon(self._window_icon)
+            # icon
+            if self._icon_file:
+                self._window_icon = QtGui.QIcon(self._icon_file)
+                self._qt_application.setWindowIcon(self._window_icon)
 
-        # splash
-        if self._splash_file:
-            pixmap = QtGui.QPixmap(self._splash_file)
-            self._splash = QSplashScreen(pixmap)
-            if self._splash_text:
-                self._set_splash_text(self._splash_text, "#ffffff")
-            self._splash.show()
+            # splash
+            if self._splash_file:
+                pixmap = QtGui.QPixmap(self._splash_file)
+                self._splash = QSplashScreen(pixmap)
+                if self._splash_text:
+                    self._set_splash_text(self._splash_text, "#ffffff")
+                self._splash.show()
 
         # asyncqt
         asyncqt_ui_thread_loop.start_loop()
