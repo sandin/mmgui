@@ -125,3 +125,6 @@ class App(Context):
 
     def get_application_dir_path(self):
         return self._qt_application.applicationDirPath()
+
+    def get_headless(self):
+        return self._headless
