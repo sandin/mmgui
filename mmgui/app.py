@@ -93,10 +93,14 @@ class App(Context):
 
         # log
         if self._log_file:
-            logfp = open(self._log_file, 'w')
-            STDERR_STREAMS.add(logfp)
-            STDOUT_STREAMS.add(logfp)
-
+            if sys.platform == 'win32':
+                logfp = open(self._log_file, 'w')
+                STDERR_STREAMS.add(logfp)
+                STDOUT_STREAMS.add(logfp)
+            else:
+                logfp = open(self._log_file, 'a')
+                sys.stdout = logfp
+                sys.stderr = logfp
         self._qt_application.aboutToQuit.connect(self._on_quit)
         self.on_create() # -> create and show the WebView window
         exit_code = self._qt_application.exec_()
