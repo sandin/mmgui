@@ -221,7 +221,8 @@ class BrowserWindow(object):
         else:
             self._widget_ui.consoleLogDockWidget.setVisible(False)
 
-
+    def set_style_sheet(self,  style_sheet_dir) -> NoReturn:
+        self._main_window.setStyleSheet(style_sheet_dir)
 
     def _setup_shortcut_keys(self):
         self._shortcut_refresh = QShortcut(QKeySequence('Ctrl+R'), self._main_window)
