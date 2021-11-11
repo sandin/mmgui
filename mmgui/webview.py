@@ -7,7 +7,7 @@ from typing import NoReturn, Callable, Any
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtCore import QUrl, QObject, pyqtSignal, pyqtSlot, QVariant, QDir, QEvent, QPoint, QMimeData
 from PyQt5.QtWidgets import QMainWindow, QWidget, QMessageBox, QFileDialog, QShortcut
-from PyQt5.QtGui import QDragEnterEvent, QDragLeaveEvent, QDropEvent, QKeyEvent, QKeySequence
+from PyQt5.QtGui import QDragEnterEvent, QDragLeaveEvent, QDropEvent, QKeyEvent, QKeySequence, QCloseEvent
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineScript, QWebEngineSettings
 from PyQt5.QtWebChannel import QWebChannel
 
@@ -38,7 +38,7 @@ class MyQWebEngineView(QWebEngineView):
     """
 
     def __init__(self, parent, drop_callback: Callable[[QDropEvent], None], dev_mode: bool):
-        super(MyQWebEngineView, self).__init__(parent)
+        super(QWebEngineView, self).__init__(parent)
         self._drop_callback = drop_callback
         self._dev_mode = dev_mode
 
@@ -52,6 +52,17 @@ class MyQWebEngineView(QWebEngineView):
     def dropEvent(self, event: QDropEvent):
         logger.info("dropEvent %s", event)
         self._drop_callback(event)
+
+
+class MyQMainWindow(QMainWindow):
+
+    def __init__(self, parent, on_close_callback: Callable):
+        super(QMainWindow, self).__init__(parent)
+        self._on_close_callback = on_close_callback
+
+    def closeEvent(self, event: QCloseEvent):
+        if self._on_close_callback:
+            self._on_close_callback()
 
 
 class CookiesJar(object):
@@ -144,6 +155,7 @@ class BrowserWindow(object):
         self._menus = []
         self._actions = []
         self._setup_ui()
+        self._on_window_close_callback = None
 
     def _setup_ui(self) -> NoReturn:
         self._setup_main_window()
@@ -153,7 +165,7 @@ class BrowserWindow(object):
         self._setup_shortcut_keys()
 
     def _setup_main_window(self) -> NoReturn:
-        self._main_window = QMainWindow()
+        self._main_window = MyQMainWindow(None, self._on_window_close)
         if self._configs['frameless']:
             self._main_window.setWindowFlags(QtCore.Qt.FramelessWindowHint)
         self._widget_ui = Ui_WebViewWindowUI()
@@ -164,6 +176,13 @@ class BrowserWindow(object):
 
     def get_main_window(self):
         return self._main_window
+
+    def set_on_window_close_callback(self, callback):
+        self._on_window_close_callback = callback
+
+    def _on_window_close(self):
+        if self._on_window_close_callback:
+            self._on_window_close_callback()
 
     def _setup_menus(self) -> NoReturn:
         app_menu = self._configs['menu']
