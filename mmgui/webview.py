@@ -162,7 +162,6 @@ class BrowserWindow(object):
         self._setup_menus()
         self._setup_status_bar()
         self._setup_web_engine_view()
-        self._setup_shortcut_keys()
 
     def _setup_main_window(self) -> NoReturn:
         self._main_window = MyQMainWindow(None, self._on_window_close)
@@ -237,6 +236,7 @@ class BrowserWindow(object):
             self._widget_ui.verticalLayout_3.addWidget(self._devtools_web_view.get_widget_view())
             self.webview.set_web_dev_tools_page(self._devtools_web_view.get_web_engine_view_page()) # bind webEngineView with devTools
             self._widget_ui.consoleLogDockWidget.setVisible(True)
+            self._setup_shortcut_keys()  # 注册F5,F12等事件
         else:
             self._widget_ui.consoleLogDockWidget.setVisible(False)
 
