@@ -10,6 +10,7 @@ ORIGINAL_STDIO = {
 }
 STDOUT_STREAMS = set()
 STDERR_STREAMS = set()
+STREAMS_ENCODE = set()
 
 if sys.platform == 'win32':
     from _ctypes import Structure, POINTER
@@ -349,10 +350,18 @@ if sys.platform == 'win32':
                 self.attrs[name] = mk_attr(name)
             return self.attrs[name]
 
+        def write(self, log_text):
+            encode_log_text = log_text
+            for encode_fun in STREAMS_ENCODE:
+                encode_log_text = encode_fun(encode_log_text)
+
+            for stream in self.arr:
+                stream.write(encode_log_text)
+
 
     def hide_console():
         WINDOW_OP_PROXY['hide']()
-      
+
     def show_console():
         ShowWindow(GetConsoleWindow(), 5)
         global IS_CONSOLE_HIDDEN
@@ -396,8 +405,8 @@ else:
 
     def run_as_job():
         pass
-    
+
     def hide_console():
         pass
 
-    
+

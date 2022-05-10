@@ -7,7 +7,7 @@ from PyQt5 import QtGui, QtCore
 from PyQt5.QtCore import QCoreApplication, QSettings
 from PyQt5.QtWidgets import QApplication, QSplashScreen
 
-from .platform import setup_stdio, setup_console, run_as_job, STDOUT_STREAMS, STDERR_STREAMS
+from .platform import setup_stdio, setup_console, run_as_job, STDOUT_STREAMS, STDERR_STREAMS, STREAMS_ENCODE
 from .asyncqt import asyncqt_ui_thread_loop
 
 
@@ -24,7 +24,8 @@ class App(Context):
                  splash_file = None,
                  splash_text = None,
                  configs_file = None,
-                 log_file = None
+                 log_file = None,
+                 log_encode = None
                  ):
         self._headless = headless
         self._configs_file = configs_file
@@ -32,6 +33,7 @@ class App(Context):
         self._splash_file = splash_file
         self._splash_text = splash_text
         self._log_file = log_file
+        self._log_encode = log_encode
         self._settings : QSettings = None
         self._qt_application = None
         self._events_callback = {
@@ -92,6 +94,9 @@ class App(Context):
             self._settings.sync()
 
         # log
+        if self._log_encode:
+            STREAMS_ENCODE.add(self._log_encode)
+        
         if self._log_file:
             if sys.platform == 'win32':
                 logfp = open(self._log_file, 'w')
