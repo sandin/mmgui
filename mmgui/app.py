@@ -99,7 +99,7 @@ class App(Context):
         
         if self._log_file:
             if sys.platform == 'win32':
-                logfp = open(self._log_file, 'w')
+                logfp = open(self._log_file, 'w', encoding="utf-8")
                 STDERR_STREAMS.add(logfp)
                 STDOUT_STREAMS.add(logfp)
             else:
