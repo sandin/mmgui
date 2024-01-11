@@ -7,7 +7,7 @@ from PyQt5 import QtGui, QtCore
 from PyQt5.QtCore import QCoreApplication, QSettings
 from PyQt5.QtWidgets import QApplication, QSplashScreen
 
-from .platform import setup_stdio, setup_console, run_as_job, STDOUT_STREAMS, STDERR_STREAMS, STREAMS_ENCODE
+from .platform import setup_stdio, setup_console, run_as_job, STDOUT_STREAMS, STDERR_STREAMS
 from .asyncqt import asyncqt_ui_thread_loop
 
 
@@ -25,13 +25,15 @@ class App(Context):
                  splash_text = None,
                  configs_file = None,
                  log_file = None,
-                 log_encode = None
+                 log_encode = None,
+                 debug = True
                  ):
         self._headless = headless
         self._configs_file = configs_file
         self._icon_file = icon_file
         self._splash_file = splash_file
         self._splash_text = splash_text
+        self._debug = debug
         self._log_file = log_file
         self._log_encode = log_encode
         self._settings : QSettings = None
@@ -60,7 +62,8 @@ class App(Context):
 
     def run(self) -> int:
         setup_stdio()
-        setup_console()
+        if self._debug:
+            setup_console()
         run_as_job()
 
         argv = sys.argv[:]
@@ -94,9 +97,7 @@ class App(Context):
             self._settings.sync()
 
         # log
-        if self._log_encode:
-            STREAMS_ENCODE.add(self._log_encode)
-        
+
         if self._log_file:
             if sys.platform == 'win32':
                 logfp = open(self._log_file, 'w', encoding="utf-8")
@@ -106,6 +107,16 @@ class App(Context):
                 logfp = open(self._log_file, 'a')
                 sys.stdout = logfp
                 sys.stderr = logfp
+
+            if self._log_encode:
+                _write = logfp.write
+
+                def log_encode_write(log_text):
+                    log_text = self._log_encode(log_text)
+                    _write(log_text)
+
+                logfp.write = log_encode_write
+
         self._qt_application.aboutToQuit.connect(self._on_quit)
         self.on_create() # -> create and show the WebView window
         exit_code = self._qt_application.exec_()
