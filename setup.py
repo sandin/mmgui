@@ -17,8 +17,8 @@ setup(
   include_package_data=True, # 代码以外的文件也包含进来, 这些文件可以通过 __file__ 加相对路径找到
   packages=find_namespace_packages(include=['mmgui.*', "mmgui"]),
   install_requires='''
-PyQt5==5.12
-PyQt5-sip==4.19.19
-PyQtWebEngine==5.12
+PyQt5>=5.12
+PyQt5-sip>=4.19.19
+PyQtWebEngine>=5.12
 '''.split('\n'),
   zip_safe=False)
