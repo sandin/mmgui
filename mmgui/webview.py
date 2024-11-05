@@ -298,6 +298,9 @@ class BrowserWindow(object):
     def move_by(self, dx, dy):
         cur_pos: QPoint = self._main_window.pos()
         self._main_window.move(cur_pos.x() + dx, cur_pos.y() + dy)
+    
+    def resize(self, width, height):
+        self._main_window.resize(width, height)
 
     def close(self) -> NoReturn:
         if self.webview:
