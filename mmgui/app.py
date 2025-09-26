@@ -137,6 +137,11 @@ class App(Context):
             return self._settings.value(key, def_val)
         return def_val
 
+    def set_config(self, key, val):
+        if self._settings:
+            return self._settings.setValue(key, val)
+        return None
+
     def _on_quit(self):
         self.on_destroy()
 
