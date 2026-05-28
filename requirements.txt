@@ -1,5 +1,5 @@
-PyQt5>=5.12
-PyQt5-sip>=4.19.19
-PyQtWebEngine>=5.12
-pytest>=6.1.2
-pytest-qt>=3.3.0
+PyQt5>=5.15.10
+PyQt5-sip>=12.13
+PyQtWebEngine>=5.15.6
+pytest>=7.4.0
+pytest-qt>=4.2.0
